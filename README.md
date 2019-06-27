@@ -1,5 +1,7 @@
 # TaskAll
 
+([Here you can find a detailed explanation](https://habr.com/ru/post/349352/))
+
  Using the library you can replace a code as follows:
  ```Cs
 Task<int> get1 = Get1();
