@@ -18,12 +18,7 @@ namespace TaskAll
             return new SequentialTaskWrapper<T>(task);
         }
 
-        public static ITaskAccumulator<TRes> SelectMany<TCur, TNext, TRes>(this ParallelTaskWrapper<TCur> source, Func<TCur, ParallelTaskWrapper<TNext>> exec, Func<TCur, TNext, TRes> mapper)
-        {
-            return new TaskAccumulatorInitial<TCur, TNext, TRes>(source.Task, exec(default(TCur)).Task, mapper);
-        }
-
-        public static ITaskAccumulator<TRes> SelectMany<TCur, TNext, TRes>(this ITaskAccumulator<TCur> source, Func<TCur, ParallelTaskWrapper<TNext>> exec, Func<TCur, TNext, TRes> mapper)
+        public static ParallelTaskWrapper<TRes> SelectMany<TCur, TNext, TRes>(this ParallelTaskWrapper<TCur> source, Func<TCur, ParallelTaskWrapper<TNext>> exec, Func<TCur, TNext, TRes> mapper)
         {
             ParallelTaskWrapper<TNext> nextWrapper;
             try
@@ -34,40 +29,28 @@ namespace TaskAll
             {
                 throw new Exception(NotResolvedParamErrorText, e);
             }
-            return new TaskAccumulator<TCur, TNext, TRes>((ITaskAccumulatorInternal<TCur>)source, nextWrapper.Task, mapper);
+
+            async Task<TRes> GetResult()
+            {
+                var arg1 = await source.Task;
+                var arg2 = await nextWrapper.Task;
+                return mapper(arg1, arg2);
+            }
+
+
+            return new ParallelTaskWrapper<TRes>(GetResult());
         }
 
-        public static ITaskAccumulator<TRes> SelectMany<TCur, TNext, TRes>(this ITaskAccumulator<TCur> source, Func<TCur, SequentialTaskWrapper<TNext>> exec, Func<TCur, TNext, TRes> mapper)
+        public static ParallelTaskWrapper<TRes> SelectMany<TCur, TNext, TRes>(this ParallelTaskWrapper<TCur> source, Func<TCur, SequentialTaskWrapper<TNext>> exec, Func<TCur, TNext, TRes> mapper)
         {
-            return new SingleTask<TRes>(BuildTask());
-
-            async Task<TRes> BuildTask()
+            async Task<TRes> GetResult()
             {
-                var arg1 = await source.Result();
-
+                var arg1 = await source;
                 var arg2 = await exec(arg1).Task;
-
                 return mapper(arg1, arg2);
             }
-        }
 
-        public static ITaskAccumulator<TRes> SelectMany<TCur, TNext, TRes>(this ITaskAccumulator<TCur> source, Func<TCur, ITaskAccumulator<TNext>> exec, Func<TCur, TNext, TRes> mapper)
-        {
-            return new SingleTask<TRes>(BuildTask());
-
-            async Task<TRes> BuildTask()
-            {
-                var arg1 = await source.Result();
-
-                var arg2 = await exec(arg1);
-
-                return mapper(arg1, arg2);
-            }
-        }
-
-        public static ITaskAccumulator<TRes> Select<TCur, TRes>(this ITaskAccumulator<TCur> source, Func<TCur, TRes> mapper)
-        {
-            return new SingleTask<TRes>(source.Result().ContinueWith(task=> mapper(task.Result)));
+            return new ParallelTaskWrapper<TRes>(GetResult());
         }
 
         public static ParallelTaskWrapper<TRes> Select<TCur, TRes>(this ParallelTaskWrapper<TCur> source, Func<TCur, TRes> mapper)
@@ -75,7 +58,10 @@ namespace TaskAll
             return new ParallelTaskWrapper<TRes>(source.Task.ContinueWith(t=> mapper(t.Result)));
         }
 
-        public static TaskAwaiter<T> GetAwaiter<T>(this ITaskAccumulator<T> source)
-            => source.Result().GetAwaiter();
+        public static TaskAwaiter<T> GetAwaiter<T>(this ParallelTaskWrapper<T> source)
+            => source.Task.GetAwaiter();
+
+        public static TaskAwaiter<T> GetAwaiter<T>(this SequentialTaskWrapper<T> source)
+            => source.Task.GetAwaiter();
     }
 }

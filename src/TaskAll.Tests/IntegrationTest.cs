@@ -114,32 +114,6 @@ namespace TaskAll.Tests
         }
 
         [Test]
-        public async Task Test_Embed()
-        {
-            var sw = Stopwatch.StartNew();
-
-            var result = await
-                from val1  in Get1().AsParallel()
-                from val2  in Get2().AsParallel()
-
-                from sub in //Here all the previous results can be used
-                    from val6 in Add5(val1).AsParallel()
-                    from val7 in Add5(val2).AsParallel()
-                    select val6 + val7
-
-                from val3S in Get3Str().AsParallel()
-                from val4  in Get4().AsParallel()
-                select val1 + val2 + int.Parse(val3S) + val4 + sub;
-
-
-            sw.Stop();
-
-            Assert.AreEqual(22, result);
-            Assert.GreaterOrEqual(sw.ElapsedMilliseconds, TimeSlotMs*2);
-            Assert.Less(sw.ElapsedMilliseconds, TimeSlotMs* + LagMs);
-        }
-
-        [Test]
         public async Task Test_Error()
         {
             var sw = Stopwatch.StartNew();
@@ -164,7 +138,7 @@ namespace TaskAll.Tests
             }
 
             Assert.NotNull(exception);
-            Assert.AreEqual("This is a test error #2", exception.Message);
+            Assert.AreEqual("This is a test error #1", exception.Message);
 
 
             sw.Stop();
